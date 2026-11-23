@@ -13,6 +13,7 @@ Run:
 
 import customtkinter as ctk
 from tkinter import messagebox
+import threading
 
 # ---------------------------------------------------------------------------
 # Algorithm registry (GUI layer) - decoupled from the algorithm modules
@@ -576,18 +577,71 @@ class CryptoApp(ctk.CTk):
                 text=f"Public key  (e, n) = {pub}    |    Private key  (d, n) = {priv}")
             return None  # key handled via self.rsa_*
         kwargs = {}
+        # Map algorithm function parameter names to key_fields names.
+        # Caesar's key_fields labels the parameter as "key" but the function
+        # expects "shift"; all other algorithms match by default.
+        param_rename = {
+            "Caesar Cipher": "shift",
+        }
+        expected_param = param_rename.get(algo["name"])
         for key_name, _, kind in algo["key_fields"]:
             val = self.key_entries[key_name].get().strip()
             if val == "":
                 raise ValueError(f"Please enter the {key_name}.")
             if kind == "int":
                 try:
-                    kwargs[key_name] = int(val)
+                    kwargs[expected_param if expected_param else key_name] = int(val)
                 except ValueError:
                     raise ValueError(f"'{key_name}' must be an integer, got {val!r}.")
             else:
-                kwargs[key_name] = val
+                kwargs[expected_param if expected_param else key_name] = val
         return kwargs
+
+    def _do_rsa_gen(self):
+        """Explicitly generate RSA keys from prime p and q inputs with timeout guard."""
+        try:
+            p = self.key_entries["p"].get().strip()
+            q = self.key_entries["q"].get().strip()
+            if not p or not q:
+                raise ValueError("Enter both prime p and prime q.")
+
+            # Run the blocking key generation in a thread with a timeout
+            result = [None]
+            error = [None]
+
+            def run_gen():
+                try:
+                    pub, priv = m5.rsa_generate_keys(p, q)
+                    result[0] = (pub, priv)
+                except Exception as e:
+                    error[0] = e
+
+            thread = threading.Thread(target=run_gen, daemon=True)
+            thread.start()
+            thread.join(timeout=10)  # 10-second timeout
+
+            if thread.is_alive():
+                # Thread is still running — timeout
+                messagebox.showerror("Key Generation Timeout",
+                    "RSA key generation took too long (10s). "
+                    "This may be caused by very large primes or an infinite loop. "
+                    "Try smaller prime values.")
+                self.status.configure(text="RSA key generation timed out.", text_color=DANGER)
+                return
+
+            if error[0] is not None:
+                raise error[0]
+
+            pub, priv = result[0]
+            self.rsa_public = pub
+            self.rsa_private = priv
+            self.lbl_rsa_keys.configure(
+                text=f"Public key  (e, n) = {pub}    |    Private key  (d, n) = {priv}")
+            self.status.configure(text="RSA keys generated successfully.", text_color=ACCENT_EMERALD)
+        except ValueError as ve:
+            messagebox.showerror("Key Generation Error", str(ve))
+        except Exception as exc:
+            messagebox.showerror("Key Generation Error", str(exc))
 
     def _do_encrypt(self):
         try:
@@ -599,13 +653,38 @@ class CryptoApp(ctk.CTk):
 
             if algo.get("rsa"):
                 if self.rsa_public is None:
-                    raise ValueError("Generate RSA keys first (enter p, q and click GENERATE RSA KEYS).")
+                    self._gather_keys()
                 kwargs = {"public_key": self.rsa_public}
             else:
                 kwargs = self._gather_keys()
 
-            enc_fn = getattr(algo["module"], algo["enc_fn"])
-            ct = enc_fn(pt, **kwargs)
+            # Run encryption in a thread with a timeout to prevent GUI freeze
+            result = [None]
+            error = [None]
+
+            def run_enc():
+                try:
+                    enc_fn = getattr(algo["module"], algo["enc_fn"])
+                    ct = enc_fn(pt, **kwargs)
+                    result[0] = ct
+                except Exception as e:
+                    error[0] = e
+
+            thread = threading.Thread(target=run_enc, daemon=True)
+            thread.start()
+            thread.join(timeout=10)  # 10-second timeout
+
+            if thread.is_alive():
+                messagebox.showerror("Encryption Timeout",
+                    "Encryption took too long (10s). The operation may be looping or "
+                    "involving very large data. Try shorter text or smaller keys.")
+                self.status.configure(text="Encryption timed out.", text_color=DANGER)
+                return
+
+            if error[0] is not None:
+                raise error[0]
+
+            ct = result[0]
             self._set_text(self.txt_output, ct)
             self.status.configure(text="Encrypted successfully.", text_color=ACCENT_EMERALD)
         except Exception as exc:
@@ -621,13 +700,38 @@ class CryptoApp(ctk.CTk):
 
             if algo.get("rsa"):
                 if self.rsa_private is None:
-                    raise ValueError("Generate RSA keys first (enter p, q and click GENERATE RSA KEYS).")
+                    self._gather_keys()
                 kwargs = {"private_key": self.rsa_private}
             else:
                 kwargs = self._gather_keys()
 
-            dec_fn = getattr(algo["module"], algo["dec_fn"])
-            pt = dec_fn(ct, **kwargs)
+            # Run decryption in a thread with a timeout to prevent GUI freeze
+            result = [None]
+            error = [None]
+
+            def run_dec():
+                try:
+                    dec_fn = getattr(algo["module"], algo["dec_fn"])
+                    pt = dec_fn(ct, **kwargs)
+                    result[0] = pt
+                except Exception as e:
+                    error[0] = e
+
+            thread = threading.Thread(target=run_dec, daemon=True)
+            thread.start()
+            thread.join(timeout=10)  # 10-second timeout
+
+            if thread.is_alive():
+                messagebox.showerror("Decryption Timeout",
+                    "Decryption took too long (10s). The operation may be looping or "
+                    "involving very large ciphertext. Try shorter data or smaller keys.")
+                self.status.configure(text="Decryption timed out.", text_color=DANGER)
+                return
+
+            if error[0] is not None:
+                raise error[0]
+
+            pt = result[0]
             self._set_text(self.txt_output, pt)
             self.status.configure(text="Decrypted successfully.", text_color=ACCENT_EMERALD)
         except Exception as exc:
