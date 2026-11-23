@@ -8,8 +8,8 @@ Modules:
     member2_ali2.py        - Ali 2:       Hill, Playfair
     member3_ali_ayman.py   - Ali Ayman:   Affine, DNA
     member4_mohammed_ehab.py - Mohammed Ehab: Vigenere, Autokey
-    member5_omar.py        - Omar:        RSA, 14th Algorithm (Atbash)
-    member6_amr_elshamy.py - Amr Elshamy: Rail Fence, Single Columnar, Double Columnar
+    member5_omar.py        - Omar:        RSA, Rail Fence Transposition
+    member6_amr_elshamy.py - Amr Elshamy: Single & Double Columnar Transposition
 
 Every algorithm exposes two functions:
     encrypt(text, **params) -> str

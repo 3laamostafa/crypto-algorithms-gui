@@ -152,6 +152,7 @@ ALGORITHMS = [
                  "plaintext letters themselves. Stronger than Vigenere.",
     },
     # ---- Member 5: Omar ----
+    # ---- Member 5: Omar ----
     {
         "name": "RSA",
         "module": m5,
@@ -168,30 +169,18 @@ ALGORITHMS = [
         "rsa": True,
     },
     {
-        "name": "Atbash Cipher (14th)",
+        "name": "Rail Fence Transposition",
         "module": m5,
-        "enc_fn": "atbash_encrypt",
-        "dec_fn": "atbash_decrypt",
-        "category": "Substitution",
-        "owner": "Omar (Member 5)",
-        "key_fields": [],
-        "formula": "E(x) = D(x) = (25 - x) mod 26    (A<->Z, B<->Y, ...)",
-        "guide": "Classic mirror/reflection cipher. No key needed; "
-                 "encrypt and decrypt are identical.",
-    },
-    # ---- Member 6: Amr Elshamy ----
-    {
-        "name": "Rail Fence Cipher",
-        "module": m6,
         "enc_fn": "rail_fence_encrypt",
         "dec_fn": "rail_fence_decrypt",
         "category": "Transposition",
-        "owner": "Amr Elshamy (Member 6)",
+        "owner": "Omar (Member 5)",
         "key_fields": [("rails", "Number of rails (integer)", "int")],
         "formula": "Zig-zag write down/up `rails` rows, then read row by row",
         "guide": "Write the text in a zig-zag across `rails` rails (>=2), "
                  "then read off each row. Spaces are preserved.",
     },
+    # Rail Fence Cipher removed - belongs to Omar (Member 5) as his transposition algorithm
     {
         "name": "Single Columnar Transposition",
         "module": m6,
@@ -353,8 +342,8 @@ class CryptoApp(ctk.CTk):
                   "Ali 2  (2)  Hill, Playfair",
                   "Ali Ayman  (3)  Affine, DNA",
                   "Mohammed Ehab  (4)  Vigenere, Autokey",
-                  "Omar  (5)  RSA, Atbash (14th)",
-                  "Amr Elshamy  (6)  Rail Fence, Col. Transposition"]
+                  "Omar  (5)  RSA, Rail Fence Transposition",
+                  "Amr Elshamy  (6)  Single & Double Columnar"]
         for i, o in enumerate(owners):
             ctk.CTkLabel(badge, text=o, font=("Consolas", 9), text_color=TEXT_DIM,
                          anchor="w").grid(row=i + 1, column=0, sticky="w",
@@ -674,7 +663,6 @@ class CryptoApp(ctk.CTk):
             "Vigenere Cipher": "Vigenere Cipher",
             "Autokey Cipher": "Autokey Test",
             "RSA": "RSA TEST",
-            "Atbash Cipher (14th)": "Atbash 14!",
             "Rail Fence Cipher": "Rail Fence Cipher",
             "Single Columnar Transposition": "Single Columnar",
             "Double Columnar Transposition": "Double Columnar",
